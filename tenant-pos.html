@@ -17,6 +17,7 @@ table{border-collapse:collapse;width:100%;background:#fff}th{background:#e5e7eb;
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.g label{display:grid;gap:2px;font-size:12px;color:#475569}
 h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{background:#fff;border:1px solid #d1d5db;margin:4px 0;padding:6px 10px;cursor:pointer}.res:hover{background:#eff6ff}
 #msg{color:#475569;margin-left:8px}pre{background:#fff;padding:8px;max-height:240px;overflow:auto}
+#tw{overflow-x:auto}#tt{table-layout:fixed;width:auto}#tt td,#tt th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rz{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none}.rz:hover,.rz.on{background:#1f3864}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -31,7 +32,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 <select id="st"><option value="">全部狀態</option><option>營業中</option><option>籌備中（新開幕）</option><option>已撤櫃</option><option>虛擬</option></select>
 <select id="cf"><option value="">全部合約</option><option>已到期</option><option>90日內</option><option>有效</option><option>無資料</option></select>
 <button class="p" id="nt">＋新增專櫃</button><b id="cnt"></b></div>
-<table><thead><tr><th>櫃號</th><th>櫃名</th><th>類型</th><th>樓層</th><th>分機</th><th>合約到期</th><th>狀態</th><th>機器</th><th>EDC</th></tr></thead><tbody id="tb"></tbody></table></section>
+<div id="tw"><table id="tt"><colgroup id="cg"></colgroup><thead><tr><th>櫃號</th><th>櫃名</th><th>類型</th><th>樓層</th><th>位置</th><th>分機</th><th>合約到期</th><th>狀態</th><th>機器</th><th>EDC</th></tr></thead><tbody id="tb"></tbody></table></div></section>
 <section id="v-search" hidden><div class="bar"><input id="gq" size="40" placeholder="輸入機號、IP、TID、櫃號、櫃名或分機（至少 2 字）" autofocus></div><div id="sr"></div></section>
 <section id="v-import" hidden><p>選擇 <b>tenant-pos-seed.json</b>。相同 ID 會被覆蓋（可重複匯入）；資料原樣寫入，含重複與過期合約，疑義以標記顯示。</p>
 <div class="bar"><input type="file" id="fi" accept=".json"><button class="p" id="go" disabled>開始匯入</button></div><pre id="log">尚未選擇檔案</pre></section>
@@ -39,7 +40,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 <div id="mod"><div id="md"></div></div>
 <script>
 const FB={apiKey:"AIzaSyApAO5NwuoXSJtO3y53taHLPgDxYk32v8E",authDomain:"posteam-tenant.firebaseapp.com",projectId:"posteam-tenant"}; // ← 填入 Firebase 設定
-const SHARED_EMAIL="tenant-pos@posteam.local"; // ← 共用帳號（Firebase Auth 的 Email/Password 使用者）
+const SHARED_EMAIL="jiajie.lin@tfc101.com.tw"; // ← 共用帳號（Firebase Auth 的 Email/Password 使用者）
 firebase.initializeApp(FB);const auth=firebase.auth(),db=firebase.firestore();
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const C={tenants:"tp_tenants",registers:"tp_registers",edc:"tp_edc",notes:"tp_notes",events:"tp_events",log:"tp_log",meta:"tp_meta"};
@@ -57,16 +58,31 @@ const m=await db.collection(C.meta).doc("operators").get();OPS=m.exists?m.data()
 fillOps();fillFl();render();msg("")}
 function fillOps(){const v=localStorage.op||"";$("#op").innerHTML=opts([""].concat(OPS),v)}
 $("#op").onchange=e=>localStorage.op=e.target.value;
-$("#addop").onclick=async()=>{const n=prompt("新增操作人姓名");if(!n)return;OPS.push(n.trim());await db.collection(C.meta).doc("operators").set({list:OPS});localStorage.op=n.trim();fillOps()};
+$("#addop").onclick=async()=>{const n=prompt("新增操作人姓名"),nm=(n||"").trim();if(!nm||OPS.includes(nm))return;try{await db.collection(C.meta).doc("operators").set({list:[...OPS,nm]});OPS.push(nm);localStorage.op=nm;fillOps()}catch(e){alert("新增失敗："+e.message)}};
 function fillFl(){const s=new Set(Object.values(D.tenants).map(t=>t.floor).filter(Boolean));$("#fl").innerHTML='<option value="">全部樓層</option>'+opts([...s].sort((a,b)=>fo(a)-fo(b)||a.localeCompare(b)))}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));["tenants","search","import"].forEach(v=>$("#v-"+v).hidden=v!==b.dataset.v)});
 const cs=t=>{if(!t.contractEnd)return["無資料",""];const d=(new Date(t.contractEnd)-new Date())/864e5;return d<0?["已到期","bad"]:d<=90?["90日內","warn"]:["有效",""]};
 const regsOf=id=>Object.values(D.registers).filter(r=>r.tenantId===id),edcOf=id=>Object.values(D.edc).filter(e=>e.tenantId===id),notesOf=(c,id)=>Object.values(D.notes).filter(n=>n.scope===c&&n.targetId===id);
-function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={};
-Object.values(D.registers).forEach(r=>rc[r.tenantId]=(rc[r.tenantId]||0)+1);Object.values(D.edc).forEach(e=>ec[e.tenantId]=(ec[e.tenantId]||0)+1);
+function posLoc(no){no=String(no||"").trim().toUpperCase();let m;
+if(m=/^C([BLMNO])/.exec(no))return{B:"B1F",L:"1F",M:"2F",N:"3F",O:"4F"}[m[1]]+" 臨時櫃";
+if(m=/^T(\d{2})(\d)/.exec(no))return`${+m[1]}F ${m[2]}號`;
+if(m=/^B(\d)(\d{2})/.exec(no))return`B${m[1]}F ${+m[2]}號`;
+if(m=/^[A-Z](\d)(\d{2})/.exec(no))return`${m[1]}F ${+m[2]}號`;
+return""}
+const CW0=[80,220,70,100,180,80,150,110,60,60];
+function cwGet(){try{const a=JSON.parse(localStorage.tp_colw);if(Array.isArray(a)&&a.length===CW0.length)return a}catch(e){}return CW0.slice()}
+function cwApply(a){$("#cg").innerHTML=a.map(w=>`<col style="width:${w}px">`).join("");$("#tt").style.width=a.reduce((x,y)=>x+y,0)+"px"}
+function cwInit(){const a=cwGet();cwApply(a);document.querySelectorAll("#tt th").forEach((th,i)=>{const h=document.createElement("div");h.className="rz";th.appendChild(h);
+h.onpointerdown=e=>{e.preventDefault();h.setPointerCapture(e.pointerId);const x0=e.clientX,w0=a[i];h.classList.add("on");
+h.onpointermove=m=>{a[i]=Math.max(40,Math.round(w0+m.clientX-x0));cwApply(a)};
+h.onpointerup=()=>{h.onpointermove=h.onpointerup=null;h.classList.remove("on");localStorage.tp_colw=JSON.stringify(a)}};
+h.ondblclick=()=>{a[i]=CW0[i];cwApply(a);localStorage.tp_colw=JSON.stringify(a)}})}
+cwInit();
+function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={};
+Object.values(D.registers).forEach(r=>{rc[r.tenantId]=(rc[r.tenantId]||0)+1;if(r.model==='虛擬'||r.status==='虛擬（系統）')return;const l=posLoc(r.registerNo);if(l)(lc[r.tenantId]=lc[r.tenantId]||[]).push(l)});Object.values(D.edc).forEach(e=>ec[e.tenantId]=(ec[e.tenantId]||0)+1);
 const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf))
 .sort((a,b)=>fo(a.floor)-fo(b.floor)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id)));
-$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t);return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td>${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td></tr>`}).join("");
+$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、');return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}</td><td title="${esc(L)}">${esc(L)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td></tr>`}).join("");
 $("#cnt").textContent=rows.length+" 筆"}
 ["q","fl","st","cf"].forEach(i=>$("#"+i).oninput=render);
 $("#tb").onclick=e=>{const tr=e.target.closest("tr");if(tr)openT(tr.dataset.id)};
@@ -96,13 +112,13 @@ const val=tr=>{const o={};tr.querySelectorAll("[data-k]").forEach(i=>o[i.dataset
 // ---------- tenant detail
 function openT(id){curT=id;const t=D.tenants[id];if(!t)return;const rs=regsOf(id),es=edcOf(id),ns=notesOf("tenant",id);
 const f=(k,l,type)=>`<label>${l}<input data-k="${k}" type="${type||"text"}" value="${esc(t[k])}"></label>`;
-const regRow=r=>`<tr data-c="registers" data-id="${esc(r.id)}"><td><input data-k="registerNo" value="${esc(r.registerNo)}" ${r.id?"readonly":""}>${(r.flags||[]).map(x=>`<span class="b">${x}</span>`).join("")}</td><td><select data-k="model">${opts(MOD,r.model||"")}</select></td><td><input data-k="ip" value="${esc(r.ip)}"></td><td><select data-k="status">${opts(RST,r.status||"使用中")}</select></td><td><input data-k="note" value="${esc(r.note)}"></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
+const regRow=r=>`<tr data-c="registers" data-id="${esc(r.id)}"><td><input data-k="registerNo" value="${esc(r.registerNo)}" ${r.id?"readonly":""}>${(r.flags||[]).map(x=>`<span class="b">${x}</span>`).join("")}</td><td>${esc(posLoc(r.registerNo))}</td><td><select data-k="model">${opts(MOD,r.model||"")}</select></td><td><input data-k="ip" value="${esc(r.ip)}"></td><td><select data-k="status">${opts(RST,r.status||"使用中")}</select></td><td><input data-k="note" value="${esc(r.note)}"></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
 const edcRow=e=>`<tr data-c="edc" data-id="${esc(e.id)}"><td><input data-k="tid" value="${esc(e.tid)}">${(e.flags||[]).map(x=>`<span class="b">${x}</span>`).join("")}</td><td><select data-k="acquirer">${opts(["中信","聯信"],e.acquirer||"中信")}</select></td><td><select data-k="kind">${opts(["有線","無線"],e.kind||"有線")}</select></td><td><select data-k="registerNo">${opts([""].concat(rs.map(r=>r.registerNo)),e.registerNo||"")}</select></td><td><input data-k="purpose" value="${esc(e.purpose)}"></td><td><select data-k="status">${opts(["使用中","停用"],e.status||"使用中")}</select></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
 $("#md").innerHTML=`<div class="bar"><b style="font-size:16px">${esc(t.tenantNo||"")} ${esc(t.name)}</b><span class="sp"></span><button class="s" id="cl">關閉</button></div>
 <div id="tf" data-c="tenants" data-id="${esc(id)}"><div class="g">${f("tenantNo","櫃號")}${f("name","櫃名")}<label>類型<select data-k="category">${opts(CAT,t.category||"")}</select></label>
 <label>樓層<input data-k="floor" list="fls" value="${esc(t.floor)}"><datalist id="fls">${FLO.map(x=>`<option>${x}</option>`).join("")}</datalist></label>${f("phone","分機／電話")}${f("contractEnd","合約到期日","date")}
 <label>狀態<select data-k="status">${opts(TST,t.status||"營業中")}</select></label>${f("openedAt","開幕日","date")}</div><p><button class="p sv">儲存專櫃資料</button></p></div>
-<h3>收銀機（${rs.length}）</h3><table><thead><tr><th>機號</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody id="rt">${rs.map(regRow).join("")}</tbody></table><p><button class="s" id="ar">＋新增收銀機</button></p>
+<h3>收銀機（${rs.length}）</h3><table><thead><tr><th>機號</th><th>位置</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody id="rt">${rs.map(regRow).join("")}</tbody></table><p><button class="s" id="ar">＋新增收銀機</button></p>
 <h3>EDC（${es.length}）</h3><table><thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody id="et">${es.map(edcRow).join("")}</tbody></table><p><button class="s" id="ae">＋新增 EDC</button></p>
 <h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <button class="s d dn">刪</button></p>`).join("")}</div>
 <div class="bar" id="nf"><select data-k="category">${opts(NC,"")}</select><input data-k="content" size="60" placeholder="新增備註內容"><button class="s" id="an">新增備註</button></div>`;

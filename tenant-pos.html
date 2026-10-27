@@ -39,7 +39,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 <div id="mod"><div id="md"></div></div>
 <script>
 const FB={apiKey:"AIzaSyApAO5NwuoXSJtO3y53taHLPgDxYk32v8E",authDomain:"posteam-tenant.firebaseapp.com",projectId:"posteam-tenant"}; // ← 填入 Firebase 設定
-const SHARED_EMAIL="jiajie.lin@tfc101.com.tw"; // ← 共用帳號（Firebase Auth 的 Email/Password 使用者）
+const SHARED_EMAIL="tenant-pos@posteam.local"; // ← 共用帳號（Firebase Auth 的 Email/Password 使用者）
 firebase.initializeApp(FB);const auth=firebase.auth(),db=firebase.firestore();
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const C={tenants:"tp_tenants",registers:"tp_registers",edc:"tp_edc",notes:"tp_notes",events:"tp_events",log:"tp_log",meta:"tp_meta"};

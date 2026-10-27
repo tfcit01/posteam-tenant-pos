@@ -50,7 +50,7 @@ PFX={B1F:"20","1F":"21","2F":"22","3F":"23","4F":"24"},FLO=["B1F","1F","2F","3F"
 const fo=f=>{const i=FLO.indexOf(f);return i<0?99:i},msg=t=>$("#msg").textContent=t||"";
 const opts=(a,v)=>a.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("");
 $("#lb").onclick=()=>auth.signInWithEmailAndPassword(SHARED_EMAIL,$("#pw").value).catch(e=>$("#err").textContent="登入失敗："+e.code);
-$("#pw").onkeydown=e=>e.key==="Enter"&&$("#lb").click();
+$("#pw").onkeydown=e=>{if(e.key==="Enter")$("#lb").click()};
 auth.onAuthStateChanged(u=>{$("#login").hidden=!!u;if(u)boot()});
 async function boot(){msg("載入中…");try{for(const k of Object.keys(D)){D[k]={};(await db.collection(C[k]).get()).forEach(d=>D[k][d.id]={...d.data(),id:d.id})}
 const m=await db.collection(C.meta).doc("operators").get();OPS=m.exists?m.data().list:[];}catch(e){msg("載入失敗："+e.message);return}

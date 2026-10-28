@@ -70,7 +70,7 @@ if(m=/^T(\d{2})(\d)/.exec(no))return{floor:`${+m[1]}F`,pos:+m[2],temp:false};
 if(m=/^B(\d)(\d{2})/.exec(no))return{floor:`B${m[1]}F`,pos:+m[2],temp:false};
 if(m=/^[A-Z](\d)(\d{2})/.exec(no))return{floor:`${m[1]}F`,pos:+m[2],temp:false};
 return null}
-const posLoc=no=>{const i=posInfo(no);return i?(i.temp?i.floor+" 臨時櫃":`${i.floor} ${i.pos}號`):""};
+const posLoc=no=>{const i=posInfo(no);return i?(i.temp?"臨時櫃":`${i.pos}號`):""};
 const skipV=r=>r.model==="虛擬"||r.status==="虛擬（系統）";
 const locFields=r=>{const i=skipV(r)?null:posInfo(r.registerNo);return{floor:i?i.floor:null,posNo:i&&!i.temp?i.pos:null,isTemp:!!(i&&i.temp)}};
 function tenantFloor(regs){const ok=regs.filter(r=>!skipV(r)),cnt=a=>{const c={};a.forEach(r=>{const i=posInfo(r.registerNo);if(i)c[i.floor]=(c[i.floor]||0)+1});const e=Object.entries(c).sort((x,y)=>y[1]-x[1]);return e.length?e[0][0]:null};
@@ -94,15 +94,15 @@ h.onpointermove=m=>{a[i]=Math.max(40,Math.round(w0+m.clientX-x0));cwApply(a)};
 h.onpointerup=()=>{h.onpointermove=h.onpointerup=null;h.classList.remove("on");localStorage.tp_colw=JSON.stringify(a)}};
 h.ondblclick=()=>{a[i]=CW0[i];cwApply(a);localStorage.tp_colw=JSON.stringify(a)}})}
 cwInit();
-function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={},nm={},etid={};
-Object.values(D.registers).forEach(r=>{rc[r.tenantId]=(rc[r.tenantId]||0)+1;if(r.model==='虛擬'||r.status==='虛擬（系統）')return;const l=posLoc(r.registerNo);if(l)(lc[r.tenantId]=lc[r.tenantId]||[]).push(l)});Object.values(D.edc).forEach(e=>ec[e.tenantId]=(ec[e.tenantId]||0)+1);
+function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={},nm={},etid={},pn={},pm={};
+Object.values(D.registers).forEach(r=>{rc[r.tenantId]=(rc[r.tenantId]||0)+1;if(r.model==='虛擬'||r.status==='虛擬（系統）')return;const l=posLoc(r.registerNo);if(l)(lc[r.tenantId]=lc[r.tenantId]||[]).push(l);const i=posInfo(r.registerNo);if(i&&i.floor===(D.tenants[r.tenantId]||{}).floor){const o=r.model==='mPOS'?pm:pn,k=i.temp?9998:i.pos;o[r.tenantId]=Math.min(o[r.tenantId]??99999,k)}});Object.values(D.edc).forEach(e=>ec[e.tenantId]=(ec[e.tenantId]||0)+1);
 Object.values(D.edc).forEach(e=>etid[e.tid]=e);
 const addn=(t,x)=>{if(t)(nm[t]=nm[t]||[]).push(x)};
 Object.values(D.notes).forEach(n=>{let t=null,p="";if(n.scope==="tenant")t=n.targetId;else if(n.scope==="register"){const r=D.registers[n.targetId];t=r&&r.tenantId;p=n.targetId+"："}else if(n.scope==="edc"){const e=etid[n.targetId];t=e&&e.tenantId;p="TID "+n.targetId+"："}
 addn(t,`<div>• <span class="t">${esc(n.category)}</span> ${esc(p+n.content)}</div>`)});
 Object.values(D.registers).forEach(r=>r.note&&addn(r.tenantId,`<div>• ${esc(r.registerNo)}：${esc(r.note)}</div>`));
 const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf))
-.sort((a,b)=>fo(a.floor)-fo(b.floor)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id)));
+.sort((a,b)=>{const pk=t=>pn[t.id]??pm[t.id]??99999;return fo(a.floor)-fo(b.floor)||pk(a)-pk(b)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id))});
 $("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join('');return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}</td><td title="${esc(L)}">${esc(L)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td><td class="nt">${NH}</td></tr>`}).join("");
 $("#cnt").textContent=rows.length+" 筆"}
 ["q","fl","st","cf"].forEach(i=>$("#"+i).oninput=render);

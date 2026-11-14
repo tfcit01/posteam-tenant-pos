@@ -36,7 +36,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 <div id="tw"><table id="tt"><colgroup id="cg"></colgroup><thead><tr><th>櫃號</th><th>櫃名</th><th>類型</th><th>樓層</th><th>位置</th><th>分機</th><th>合約到期</th><th>狀態</th><th>機器</th><th>EDC</th><th>備註</th></tr></thead><tbody id="tb"></tbody></table></div></section>
 <section id="v-search" hidden><div class="bar"><input id="gq" size="40" placeholder="輸入機號、IP、TID、櫃號、櫃名或分機（至少 2 字）" autofocus></div><div id="sr"></div></section>
 <section id="v-import" hidden><p>選擇 <b>tenant-pos-seed.json</b>。相同 ID 會被覆蓋（可重複匯入）；資料原樣寫入，含重複與過期合約，疑義以標記顯示。</p>
-<div class="bar"><input type="file" id="fi" accept=".json"><button class="p" id="go" disabled>開始匯入</button></div><pre id="log">尚未選擇檔案</pre><hr><p>已匯入的資料：依機號重新計算「樓層」與「位置號碼」並寫入資料庫（只更新有變動的資料）。</p><button class="p" id="rc">依機號重算樓層與位置</button></section>
+<div class="bar"><input type="file" id="fi" accept=".json"><button class="p" id="go" disabled>開始匯入</button></div><pre id="log">尚未選擇檔案</pre><hr><p>已匯入的資料：依機號重新計算「樓層」與「位置號碼」並寫入資料庫（只更新有變動的資料）。</p><button class="p" id="rc">依機號重算樓層與位置</button><hr><p>機器歸屬調整：選擇 <b>mpos-assign-patch.json</b>，把指定機器改掛到對應專櫃，並刪除異常機號。</p><div class="bar"><input type="file" id="pf" accept=".json"><button class="p" id="pg" disabled>套用歸屬調整</button></div></section>
 </main>
 <div id="mod"><div id="md"></div></div>
 <script>
@@ -70,16 +70,16 @@ if(m=/^T(\d{2})(\d)/.exec(no))return{floor:`${+m[1]}F`,pos:+m[2],temp:false};
 if(m=/^B(\d)(\d{2})/.exec(no))return{floor:`B${m[1]}F`,pos:+m[2],temp:false};
 if(m=/^[A-Z](\d)(\d{2})/.exec(no))return{floor:`${m[1]}F`,pos:+m[2],temp:false};
 return null}
-const posLoc=no=>{const i=posInfo(no);return i?(i.temp?"臨時櫃":`${i.pos}號`):""};
+const posLoc=no=>{const i=posInfo(no);return i?(i.temp?"臨時櫃":String(i.pos)):""};
 const skipV=r=>r.model==="虛擬"||r.status==="虛擬（系統）";
 const locFields=r=>{const i=skipV(r)?null:posInfo(r.registerNo);return{floor:i?i.floor:null,posNo:i&&!i.temp?i.pos:null,isTemp:!!(i&&i.temp)}};
 function tenantFloor(regs){const ok=regs.filter(r=>!skipV(r)),cnt=a=>{const c={};a.forEach(r=>{const i=posInfo(r.registerNo);if(i)c[i.floor]=(c[i.floor]||0)+1});const e=Object.entries(c).sort((x,y)=>y[1]-x[1]);return e.length?e[0][0]:null};
 return cnt(ok.filter(r=>r.model!=="mPOS"))||cnt(ok)}
-async function syncFloor(tid){const t=D.tenants[tid];if(!t)return;const f=tenantFloor(regsOf(tid));if(f&&f!==t.floor)await put("tenants",tid,{floor:f})}
-function seedFix(){const rs=seed.registers||[],by={};rs.forEach(r=>{Object.assign(r,locFields(r));(by[r.tenantId]=by[r.tenantId]||[]).push(r)});(seed.tenants||[]).forEach(t=>{const f=tenantFloor(by[t.id]||[]);if(f)t.floor=f})}
+async function syncFloor(tid){const t=D.tenants[tid];if(!t||t.floorLocked)return;const f=tenantFloor(regsOf(tid));if(f&&f!==t.floor)await put("tenants",tid,{floor:f})}
+function seedFix(){const rs=seed.registers||[],by={};rs.forEach(r=>{Object.assign(r,locFields(r));(by[r.tenantId]=by[r.tenantId]||[]).push(r)});(seed.tenants||[]).forEach(t=>{const ex=D.tenants[t.id];if(ex&&ex.floorLocked){t.floor=ex.floor;t.floorLocked=true;return}const f=tenantFloor(by[t.id]||[]);if(f)t.floor=f})}
 $("#rc").onclick=async()=>{const by=$("#op").value,lg=t=>{$("#log").textContent+="\n"+t};if(!by){alert("請先選擇操作人");return}
 const ups=[];Object.values(D.registers).forEach(r=>{const f=locFields(r);if((r.floor||null)!==f.floor||(r.posNo??null)!==f.posNo||!!r.isTemp!==f.isTemp)ups.push(["registers",r.id,f])});
-Object.values(D.tenants).forEach(t=>{const f=tenantFloor(regsOf(t.id));if(f&&f!==t.floor)ups.push(["tenants",t.id,{floor:f}])});
+Object.values(D.tenants).forEach(t=>{if(t.floorLocked)return;const f=tenantFloor(regsOf(t.id));if(f&&f!==t.floor)ups.push(["tenants",t.id,{floor:f}])});
 if(!ups.length){lg("沒有需要更新的資料");return}
 if(!confirm(`將更新 ${ups.length} 筆（機器的樓層／位置、專櫃樓層），確定？`))return;
 try{for(let i=0;i<ups.length;i+=400){const b=db.batch();ups.slice(i,i+400).forEach(([c,id,d])=>b.set(db.collection(C[c]).doc(id),{...d,updatedAt:ts(),updatedBy:"重算："+by},{merge:true}));await b.commit()}
@@ -103,7 +103,7 @@ addn(t,`<div>• <span class="t">${esc(n.category)}</span> ${esc(p+n.content)}</
 Object.values(D.registers).forEach(r=>r.note&&addn(r.tenantId,`<div>• ${esc(r.registerNo)}：${esc(r.note)}</div>`));
 const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf))
 .sort((a,b)=>{const pk=t=>pn[t.id]??pm[t.id]??99999;return fo(a.floor)-fo(b.floor)||pk(a)-pk(b)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id))});
-$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join('');return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}</td><td title="${esc(L)}">${esc(L)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td><td class="nt">${NH}</td></tr>`}).join("");
+$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join('');return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}${t.floorLocked?" 🔒":""}</td><td title="${esc(L)}">${esc(L)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td><td class="nt">${NH}</td></tr>`}).join("");
 $("#cnt").textContent=rows.length+" 筆"}
 ["q","fl","st","cf"].forEach(i=>$("#"+i).oninput=render);
 $("#tb").onclick=e=>{const tr=e.target.closest("tr");if(tr)openT(tr.dataset.id)};
@@ -129,7 +129,7 @@ const p=PFX[(D.tenants[d.tenantId]||{}).floor];if(p&&d.model!=="mPOS"&&d.ip&&d.i
 if(col==="edc"){if(!/^\d{8}$/.test(d.tid))w.push("TID 應為 8 碼數字");if(Object.values(D.edc).some(e=>e.id!==id&&e.tid===d.tid&&e.acquirer===d.acquirer))w.push("同收單行已有相同 TID")}
 if(col==="tenants"){if(d.tenantNo&&!/^[A-Z]\d{4}$/.test(d.tenantNo))w.push("櫃號格式應為 1 英文字母＋4 位數字");if(d.tenantNo&&Object.values(D.tenants).some(t=>t.id!==id&&t.tenantNo===d.tenantNo))w.push("櫃號已存在")}
 return w}
-const val=tr=>{const o={};tr.querySelectorAll("[data-k]").forEach(i=>o[i.dataset.k]=i.value.trim()||null);return o};
+const val=tr=>{const o={};tr.querySelectorAll("[data-k]").forEach(i=>o[i.dataset.k]=i.type==="checkbox"?i.checked:(i.value.trim()||null));return o};
 // ---------- tenant detail
 function openT(id){curT=id;const t=D.tenants[id];if(!t)return;const rs=regsOf(id),es=edcOf(id),ns=notesOf("tenant",id);
 const f=(k,l,type)=>`<label>${l}<input data-k="${k}" type="${type||"text"}" value="${esc(t[k])}"></label>`;
@@ -138,7 +138,7 @@ const edcRow=e=>`<tr data-c="edc" data-id="${esc(e.id)}"><td><input data-k="tid"
 $("#md").innerHTML=`<div class="bar"><b style="font-size:16px">${esc(t.tenantNo||"")} ${esc(t.name)}</b><span class="sp"></span><button class="s" id="cl">關閉</button></div>
 <div id="tf" data-c="tenants" data-id="${esc(id)}"><div class="g">${f("tenantNo","櫃號")}${f("name","櫃名")}<label>類型<select data-k="category">${opts(CAT,t.category||"")}</select></label>
 <label>樓層<input data-k="floor" list="fls" value="${esc(t.floor)}"><datalist id="fls">${FLO.map(x=>`<option>${x}</option>`).join("")}</datalist></label>${f("phone","分機／電話")}${f("contractEnd","合約到期日","date")}
-<label>狀態<select data-k="status">${opts(TST,t.status||"營業中")}</select></label>${f("openedAt","開幕日","date")}</div><p><button class="p sv">儲存專櫃資料</button></p></div>
+<label>狀態<select data-k="status">${opts(TST,t.status||"營業中")}</select></label>${f("openedAt","開幕日","date")}<label>樓層固定（不依機號自動更新）<input type="checkbox" data-k="floorLocked"${t.floorLocked?" checked":""}></label></div><p><button class="p sv">儲存專櫃資料</button></p></div>
 <h3>收銀機（${rs.length}）</h3><table><thead><tr><th>機號</th><th>位置</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody id="rt">${rs.map(regRow).join("")}</tbody></table><p><button class="s" id="ar">＋新增收銀機</button></p>
 <h3>EDC（${es.length}）</h3><table><thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody id="et">${es.map(edcRow).join("")}</tbody></table><p><button class="s" id="ae">＋新增 EDC</button></p>
 <h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <button class="s d dn">刪</button></p>`).join("")}</div>
@@ -154,11 +154,21 @@ if(b.classList.contains("dl")){if(!tr.dataset.id){tr.remove();return}if(await de
 if(b.classList.contains("sv")){const c=tr.dataset.c;let id=tr.dataset.id,d=val(tr);
 if(c==="registers"){if(!d.registerNo){alert("請輸入機號");return}if(!id){id=d.registerNo;if(D.registers[id]){alert("機號已存在");return}}d.tenantId=T;Object.assign(d,locFields(d))}
 if(c==="edc"){if(!d.tid){alert("請輸入 TID");return}if(!id){id=d.acquirer+"-"+d.tid;if(D.edc[id])id+="#"+(Date.now()%1000)}d.tenantId=T}
-if(c==="tenants"){if(!d.name){alert("請輸入櫃名");return}d.isVirtual=d.status==="虛擬"}
+if(c==="tenants"){if(!d.name){alert("請輸入櫃名");return}d.isVirtual=d.status==="虛擬";const old=D.tenants[id];if(old&&d.floor!==(old.floor||null)&&!d.floorLocked&&confirm("樓層已手動修改，是否固定此樓層（之後不再依機號自動更新）？"))d.floorLocked=true}
 const w=warn(c,d,id);if(w.length&&!confirm(w.join("\n")+"\n\n仍要儲存？"))return;
 if(await put(c,id,d)){if(c==="registers")await syncFloor(T);msg("已儲存");openT(T)}}}}
 $("#nt").onclick=async()=>{const n=prompt("新專櫃的櫃名");if(!n)return;const no=(prompt("櫃號（虛擬專櫃可留空）")||"").trim(),id=no||"VIRT-"+Date.now();
 if(D.tenants[id]){alert("此櫃號已存在");return}if(await put("tenants",id,{tenantNo:no,name:n.trim(),category:"",floor:"",phone:"",contractEnd:null,status:no?"籌備中（新開幕）":"虛擬",isVirtual:!no,openedAt:null}))openT(id)};
+let patch=null;
+$("#pf").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{patch=JSON.parse(await f.text())}catch(x){$("#log").textContent="不是有效的 JSON";return}
+$("#log").textContent=`歸屬調整：改掛 ${(patch.moves||[]).length} 台、刪除 ${(patch.deletes||[]).length} 筆\n`+(patch.moves||[]).map(m=>`${m.id} → ${m.tenantId} ${(D.tenants[m.tenantId]||{}).name||"（找不到專櫃）"}`).join("\n")+"\n刪除："+(patch.deletes||[]).join("、");$("#pg").disabled=false};
+$("#pg").onclick=async()=>{const by=$("#op").value;if(!by){alert("請先選擇操作人");return}if(!patch||!confirm("確定套用？"))return;
+const mv=(patch.moves||[]).filter(m=>D.registers[m.id]&&D.tenants[m.tenantId]),dl=(patch.deletes||[]).filter(id=>D.registers[id]);
+try{const b=db.batch();mv.forEach(m=>b.set(db.collection(C.registers).doc(m.id),{tenantId:m.tenantId,note:m.note||"",status:"使用中",updatedAt:ts(),updatedBy:"歸屬調整："+by},{merge:true}));dl.forEach(id=>b.delete(db.collection(C.registers).doc(id)));await b.commit();
+await db.collection(C.log).add({at:ts(),by,col:"batch",id:"mpos-assign",act:"assign",before:null,after:{moved:mv.map(m=>m.id),deleted:dl}});
+mv.forEach(m=>D.registers[m.id]={...D.registers[m.id],tenantId:m.tenantId,note:m.note||"",status:"使用中"});dl.forEach(id=>delete D.registers[id]);
+for(const t of new Set(mv.map(m=>m.tenantId)))await syncFloor(t);
+render();fillFl();$("#log").textContent+=`\n完成：改掛 ${mv.length} 台、刪除 ${dl.length} 筆`+(mv.length<(patch.moves||[]).length||dl.length<(patch.deletes||[]).length?"（部分項目在資料庫找不到，已略過）":"")}catch(e){$("#log").textContent+="\n失敗："+e.message}};
 // ---------- import
 $("#fi").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{seed=JSON.parse(await f.text())}catch(x){$("#log").textContent="不是有效的 JSON";return}
 $("#log").textContent=Object.keys(seed).map(k=>`${k}：${seed[k].length} 筆`).join("\n");$("#go").disabled=false};

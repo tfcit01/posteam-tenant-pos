@@ -19,6 +19,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 #msg{color:#475569;margin-left:8px}pre{background:#fff;padding:8px;max-height:240px;overflow:auto}
 #tw{overflow-x:auto}#tt{table-layout:fixed;width:auto}#tt td,#tt th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rz{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none}.rz:hover,.rz.on{background:#1f3864}
 #tt td.nt{white-space:normal;overflow:visible;text-overflow:clip}#tt td.nt div{margin:2px 0}
+#hr th{cursor:grab}#hr th.ov{box-shadow:inset 3px 0 0 #1f3864}#tt td.new{background:#fde2ec}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -33,7 +34,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 <select id="st"><option value="">全部狀態</option><option>營業中</option><option>籌備中（新開幕）</option><option>已撤櫃</option><option>虛擬</option></select>
 <select id="cf"><option value="">全部合約</option><option>已到期</option><option>90日內</option><option>有效</option><option>無資料</option></select>
 <button class="p" id="nt">＋新增專櫃</button><b id="cnt"></b></div>
-<div id="tw"><table id="tt"><colgroup id="cg"></colgroup><thead><tr><th>櫃號</th><th>櫃名</th><th>類型</th><th>樓層</th><th>位置</th><th>分機</th><th>合約到期</th><th>狀態</th><th>機器</th><th>EDC</th><th>備註</th></tr></thead><tbody id="tb"></tbody></table></div></section>
+<div id="tw"><table id="tt"><colgroup id="cg"></colgroup><thead><tr id="hr"></tr></thead><tbody id="tb"></tbody></table></div></section>
 <section id="v-search" hidden><div class="bar"><input id="gq" size="40" placeholder="輸入機號、IP、TID、櫃號、櫃名或分機（至少 2 字）" autofocus></div><div id="sr"></div></section>
 <section id="v-import" hidden><p>選擇 <b>tenant-pos-seed.json</b>。相同 ID 會被覆蓋（可重複匯入）；資料原樣寫入，含重複與過期合約，疑義以標記顯示。</p>
 <div class="bar"><input type="file" id="fi" accept=".json"><button class="p" id="go" disabled>開始匯入</button></div><pre id="log">尚未選擇檔案</pre><hr><p>已匯入的資料：依機號重新計算「樓層」與「位置號碼」並寫入資料庫（只更新有變動的資料）。</p><button class="p" id="rc">依機號重算樓層與位置</button><hr><p>機器歸屬調整：選擇 <b>mpos-assign-patch.json</b>，把指定機器改掛到對應專櫃，並刪除異常機號。</p><div class="bar"><input type="file" id="pf" accept=".json"><button class="p" id="pg" disabled>套用歸屬調整</button></div></section>
@@ -85,15 +86,21 @@ if(!confirm(`將更新 ${ups.length} 筆（機器的樓層／位置、專櫃樓�
 try{for(let i=0;i<ups.length;i+=400){const b=db.batch();ups.slice(i,i+400).forEach(([c,id,d])=>b.set(db.collection(C[c]).doc(id),{...d,updatedAt:ts(),updatedBy:"重算："+by},{merge:true}));await b.commit()}
 await db.collection(C.log).add({at:ts(),by,col:"batch",id:"recalc",act:"recalc",before:null,after:{count:ups.length,sample:ups.slice(0,30).map(([c,id,d])=>({c,id,...d}))}});
 ups.forEach(([c,id,d])=>D[c][id]={...D[c][id],...d});fillFl();render();lg(`完成：更新 ${ups.length} 筆`)}catch(e){lg("失敗："+e.message)}};
+const CK=["no","name","cat","floor","loc","phone","contract","status","pos","edc","note"],CN={no:"櫃號",name:"櫃名",cat:"類型",floor:"樓層",loc:"位置",phone:"分機",contract:"合約到期",status:"狀態",pos:"POS",edc:"EDC",note:"備註"};
 const CW0=[80,220,70,100,180,80,150,110,60,60,320];
+let ORD=(()=>{try{const a=JSON.parse(localStorage.tp_colo);if(Array.isArray(a)&&a.length===CK.length&&CK.every(k=>a.includes(k)))return a}catch(e){}return CK.slice()})();
 function cwGet(){try{const a=JSON.parse(localStorage.tp_colw);if(Array.isArray(a)&&a.length===CW0.length-1)a.push(CW0[CW0.length-1]);if(Array.isArray(a)&&a.length===CW0.length)return a}catch(e){}return CW0.slice()}
-function cwApply(a){$("#cg").innerHTML=a.map(w=>`<col style="width:${w}px">`).join("");$("#tt").style.width=a.reduce((x,y)=>x+y,0)+"px"}
-function cwInit(){const a=cwGet();cwApply(a);document.querySelectorAll("#tt th").forEach((th,i)=>{const h=document.createElement("div");h.className="rz";th.appendChild(h);
-h.onpointerdown=e=>{e.preventDefault();h.setPointerCapture(e.pointerId);const x0=e.clientX,w0=a[i];h.classList.add("on");
+function cwApply(a){$("#cg").innerHTML=ORD.map(k=>`<col style="width:${a[CK.indexOf(k)]}px">`).join("");$("#tt").style.width=a.reduce((x,y)=>x+y,0)+"px"}
+function headInit(){const a=cwGet();$("#hr").innerHTML=ORD.map(k=>`<th data-k="${k}" draggable="true" title="拖曳可調整欄位順序">${CN[k]}</th>`).join("");cwApply(a);
+$("#hr").querySelectorAll("th").forEach(th=>{const k=th.dataset.k,i=CK.indexOf(k),h=document.createElement("div");h.className="rz";th.appendChild(h);
+h.onpointerdown=e=>{e.preventDefault();e.stopPropagation();th.draggable=false;h.setPointerCapture(e.pointerId);const x0=e.clientX,w0=a[i];h.classList.add("on");
 h.onpointermove=m=>{a[i]=Math.max(40,Math.round(w0+m.clientX-x0));cwApply(a)};
-h.onpointerup=()=>{h.onpointermove=h.onpointerup=null;h.classList.remove("on");localStorage.tp_colw=JSON.stringify(a)}};
-h.ondblclick=()=>{a[i]=CW0[i];cwApply(a);localStorage.tp_colw=JSON.stringify(a)}})}
-cwInit();
+h.onpointerup=()=>{h.onpointermove=h.onpointerup=null;h.classList.remove("on");th.draggable=true;localStorage.tp_colw=JSON.stringify(a)}};
+h.ondblclick=()=>{a[i]=CW0[i];cwApply(a);localStorage.tp_colw=JSON.stringify(a)};
+th.ondragstart=e=>{e.dataTransfer.setData("text/plain",k);e.dataTransfer.effectAllowed="move"};
+th.ondragover=e=>{e.preventDefault();th.classList.add("ov")};th.ondragleave=()=>th.classList.remove("ov");
+th.ondrop=e=>{e.preventDefault();const from=e.dataTransfer.getData("text/plain");if(!from||from===k)return;const fi=ORD.indexOf(from),ti=ORD.indexOf(k);ORD.splice(fi,1);ORD.splice(ti,0,from);localStorage.tp_colo=JSON.stringify(ORD);headInit();render()}})}
+headInit();
 function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={},nm={},etid={},pn={},pm={};
 Object.values(D.registers).forEach(r=>{rc[r.tenantId]=(rc[r.tenantId]||0)+1;if(r.model==='虛擬'||r.status==='虛擬（系統）')return;const l=posLoc(r.registerNo);if(l)(lc[r.tenantId]=lc[r.tenantId]||[]).push(l);const i=posInfo(r.registerNo);if(i&&i.floor===(D.tenants[r.tenantId]||{}).floor){const o=r.model==='mPOS'?pm:pn,k=i.temp?9998:i.pos;o[r.tenantId]=Math.min(o[r.tenantId]??99999,k)}});Object.values(D.edc).forEach(e=>ec[e.tenantId]=(ec[e.tenantId]||0)+1);
 Object.values(D.edc).forEach(e=>etid[e.tid]=e);
@@ -103,7 +110,9 @@ addn(t,`<div>• <span class="t">${esc(n.category)}</span> ${esc(p+n.content)}</
 Object.values(D.registers).forEach(r=>r.note&&addn(r.tenantId,`<div>• ${esc(r.registerNo)}：${esc(r.note)}</div>`));
 const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf))
 .sort((a,b)=>{const pk=t=>pn[t.id]??pm[t.id]??99999;return fo(a.floor)-fo(b.floor)||pk(a)-pk(b)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id))});
-$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join('');return`<tr data-id="${esc(t.id)}"><td>${esc(t.tenantNo)}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${esc(t.category)}</td><td>${esc(t.floor)}${t.floorLocked?" 🔒":""}</td><td title="${esc(L)}">${esc(L)}</td><td>${esc(t.phone)}</td><td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td><td>${esc(t.status)}</td><td>${rc[t.id]||0}</td><td>${ec[t.id]||0}</td><td class="nt">${NH}</td></tr>`}).join("");
+$("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join('');
+const X={no:`<td>${esc(t.tenantNo)}</td>`,name:`<td title="${esc(t.name)}">${esc(t.name)}</td>`,cat:`<td>${esc(t.category)}</td>`,floor:`<td>${esc(t.floor)}${t.floorLocked?" 🔒":""}</td>`,loc:`<td title="${esc(L)}">${esc(L)}</td>`,phone:`<td>${esc(t.phone)}</td>`,contract:`<td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td>`,status:`<td${t.status==="籌備中（新開幕）"?' class="new"':""}>${esc(t.status)}</td>`,pos:`<td>${rc[t.id]||0}</td>`,edc:`<td>${ec[t.id]||0}</td>`,note:`<td class="nt">${NH}</td>`};
+return`<tr data-id="${esc(t.id)}">${ORD.map(x=>X[x]).join("")}</tr>`}).join("");
 $("#cnt").textContent=rows.length+" 筆"}
 ["q","fl","st","cf"].forEach(i=>$("#"+i).oninput=render);
 $("#tb").onclick=e=>{const tr=e.target.closest("tr");if(tr)openT(tr.dataset.id)};

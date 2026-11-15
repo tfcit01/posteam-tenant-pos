@@ -13,15 +13,15 @@ table{border-collapse:collapse;width:100%;background:#fff}th{background:#e5e7eb;
 #tb tr{cursor:pointer}#tb tr:hover{background:#eff6ff}.bad{color:#b91c1c;font-weight:bold}.warn{color:#b45309;font-weight:bold}
 .b{background:#fee2e2;color:#991b1b;border-radius:3px;padding:0 4px;font-size:12px;margin-left:4px}.t{background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-size:12px}
 #login{position:fixed;inset:0;background:#1f3864;display:flex;align-items:center;justify-content:center;z-index:9}#login div{background:#fff;padding:24px;border-radius:8px;display:grid;gap:8px;width:280px}
-#mod{position:fixed;inset:0;background:#0007;display:none;overflow:auto;z-index:5}#mod>div{background:#f9fafb;margin:24px auto;width:96vw;max-width:1750px;border-radius:8px;padding:16px}
+#mod{position:fixed;inset:0;background:#0007;display:none;overflow:auto;z-index:5}#mod>div{background:#f9fafb;margin:24px auto;width:98vw;max-width:1850px;border-radius:8px;padding:16px}
 .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.g label{display:grid;gap:2px;font-size:12px;color:#475569}
 h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{background:#fff;border:1px solid #d1d5db;margin:4px 0;padding:6px 10px;cursor:pointer}.res:hover{background:#eff6ff}
 #msg{color:#475569;margin-left:8px}pre{background:#fff;padding:8px;max-height:240px;overflow:auto}
 #tw{overflow-x:auto}#tt{table-layout:fixed;width:auto}#tt td,#tt th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rz{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;touch-action:none}.rz:hover,.rz.on{background:#1f3864}
 #tt td.nt{white-space:normal;overflow:visible;text-overflow:clip}#tt td.nt div{margin:2px 0}
 #hr th{cursor:grab}#hr th.ov{box-shadow:inset 3px 0 0 #1f3864}#tt td.new{background:#fde2ec}
-#dg{display:grid;grid-template-columns:270px max-content max-content;gap:16px;align-items:start}
-@media(max-width:1499px){#dg{grid-template-columns:1fr}}
+#dg{display:grid;grid-template-columns:250px minmax(560px,1fr) minmax(645px,1fr);gap:16px;align-items:start}
+@media(max-width:1559px){#dg{grid-template-columns:1fr}}
 #tf{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:10px}
 #tf label,#af label{display:grid;grid-template-columns:82px 1fr;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;color:#334155}
 #tf input,#tf select,#af input,#af select{min-width:0}#tf input[type=checkbox]{width:auto}
@@ -159,9 +159,9 @@ function openT(id){curT=id;const t=D.tenants[id];if(!t)return;
 const rs=regsOf(id).sort((a,b)=>String(a.registerNo).localeCompare(String(b.registerNo))),ord={};rs.forEach((r,i)=>ord[r.registerNo]=i);
 const es=edcOf(id).sort((a,b)=>(ord[a.registerNo]??999)-(ord[b.registerNo]??999)||String(a.tid).localeCompare(String(b.tid))),ns=notesOf("tenant",id);
 const f=(k,l,type)=>`<label>${l}<input data-k="${k}" type="${type||"text"}" value="${esc(t[k])}"></label>`,fl=x=>(x.flags||[]).map(y=>`<span class="b">${y}</span>`).join("");
-const regRow=r=>`<tr data-c="registers" data-id="${esc(r.id)}"><td><input data-k="registerNo" value="${esc(r.registerNo)}" readonly>${fl(r)}</td><td>${esc(posLoc(r.registerNo))}</td><td><select data-k="model">${opts(MOD,r.model||"")}</select></td><td><input data-k="ip" value="${esc(r.ip)}"></td><td><select data-k="status">${opts(RST,r.status||"使用中")}</select></td><td><input data-k="note" value="${esc(r.note)}" title="${esc(r.note)}"></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
+const regRow=r=>`<tr data-c="registers" data-id="${esc(r.id)}"><td><input data-k="registerNo" value="${esc(r.registerNo)}" readonly>${fl(r)}</td><td><select data-k="model">${opts(MOD,r.model||"")}</select></td><td><input data-k="ip" value="${esc(r.ip)}"></td><td><select data-k="status">${opts(RST,r.status||"使用中")}</select></td><td><input data-k="note" value="${esc(r.note)}" title="${esc(r.note)}"></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
 const edcRow=e=>`<tr data-c="edc" data-id="${esc(e.id)}"><td><input data-k="tid" value="${esc(e.tid)}">${fl(e)}</td><td><select data-k="acquirer">${opts(["中信","聯信"],e.acquirer||"中信")}</select></td><td><select data-k="kind">${opts(["有線","無線"],e.kind||"有線")}</select></td><td><select data-k="registerNo">${opts([""].concat(rs.map(r=>r.registerNo)),e.registerNo||"")}</select></td><td><input data-k="purpose" value="${esc(e.purpose)}"></td><td><select data-k="status">${opts(["使用中","停用"],e.status||"使用中")}</select></td><td><button class="s sv">存</button> <button class="s d dl">刪</button></td></tr>`;
-const cg=a=>"<colgroup>"+a.map(w=>`<col style="width:${w}px">`).join("")+"</colgroup>";
+const cg=a=>"<colgroup>"+a.map(w=>w?`<col style="width:${w}px">`:"<col>").join("")+"</colgroup>";
 $("#md").innerHTML=`<div class="bar"><b style="font-size:16px">${esc(t.tenantNo||"")} ${esc(t.name)}</b><span class="sp"></span><button class="p" id="addb">＋新增 POS／EDC</button><button class="s" id="cl">關閉</button></div>
 <div id="dg"><div id="dleft"><div id="tf" data-c="tenants" data-id="${esc(id)}">${f("tenantNo","櫃號")}${f("name","櫃名")}
 <label>樓層<input data-k="floor" list="fls" value="${esc(t.floor)}"><datalist id="fls">${FLO.map(x=>`<option>${x}</option>`).join("")}</datalist></label>
@@ -169,8 +169,8 @@ $("#md").innerHTML=`<div class="bar"><b style="font-size:16px">${esc(t.tenantNo|
 <label>類型<select data-k="category">${opts(CAT,t.category||"")}</select></label><label>狀態<select data-k="status">${opts(TST,t.status||"營業中")}</select></label>
 ${f("openedAt","開幕日","date")}${f("contractEnd","合約到期日","date")}${f("phone","分機／電話")}
 <p><button class="p sv">儲存專櫃資料</button> ${t.tenantNo?"":'<button class="s" id="mg">併入專櫃</button>'}</p></div></div>
-<div id="dpos"><h3>POS（${rs.length}）</h3><table style="width:700px">${cg([85,50,105,80,100,190,90])}<thead><tr><th>機號</th><th>位置</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody>${rs.map(regRow).join("")}</tbody></table></div>
-<div id="dedc"><h3>EDC（${es.length}）</h3><table style="width:685px">${cg([95,75,95,110,125,95,90])}<thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody>${es.map(edcRow).join("")}</tbody></table></div></div>
+<div id="dpos"><h3>POS（${rs.length}）</h3><table style="width:100%;min-width:560px">${cg([85,105,80,100,0,90])}<thead><tr><th>機號</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody>${rs.map(regRow).join("")}</tbody></table></div>
+<div id="dedc"><h3>EDC（${es.length}）</h3><table style="width:100%;min-width:645px">${cg([95,75,90,105,0,90,90])}<thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody>${es.map(edcRow).join("")}</tbody></table></div></div>
 <h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <button class="s d dn">刪</button></p>`).join("")}</div>
 <div class="bar" id="nf"><select data-k="category">${opts(NC,"")}</select><input data-k="content" size="60" placeholder="新增備註內容"><button class="s" id="an">新增備註</button></div>`;
 $("#mod").style.display="block";$("#md").dataset.t=id;

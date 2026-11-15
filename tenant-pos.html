@@ -2,10 +2,10 @@
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>租戶 POS 資料維護</title>
 <style>
-*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;font:14px "Microsoft JhengHei",sans-serif;color:#1f2937;background:#f3f4f6}
-header{background:#1f3864;color:#fff;padding:8px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-header h1{font-size:16px;margin:0 8px 0 0}nav button{background:none;border:0;color:#cbd5e1;padding:6px 12px;cursor:pointer;font:inherit;border-bottom:2px solid transparent}
-nav button.on{color:#fff;border-color:#fff}.sp{flex:1}header select{padding:3px}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;font:14px "Microsoft JhengHei",sans-serif;color:#1f2937;background:#e9edf0}
+header{position:sticky;top:0;z-index:4;background:#f8fafb;color:#16222c;border-bottom:1px solid #cdd5dc;padding:8px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header h1{font-size:16px;margin:0 8px 0 0}nav button{background:none;border:0;color:#16222c;padding:6px 12px;cursor:pointer;font:inherit;border-bottom:3px solid transparent}
+nav button.on{border-color:#2f62c9;font-weight:700}.sp{flex:1}header select{padding:3px}
 main{padding:12px 16px}.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
 input,select,textarea,button{font:inherit}input,select,textarea{padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;background:#fff}
 button.p{background:#1f3864;color:#fff;border:0;border-radius:4px;padding:5px 12px;cursor:pointer}button.s{background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:3px 8px;cursor:pointer}button.d{color:#b91c1c}
@@ -29,25 +29,38 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 #am{position:fixed;inset:0;background:#0007;display:none;z-index:7;overflow:auto}#ad{background:#fff;max-width:480px;margin:8vh auto;padding:16px;border-radius:8px}
 .pv{color:#475569;font-size:12px;margin:4px 0}
 tr.off td{background:#f1f5f9}tr.off input,tr.off select{color:#94a3b8;background:#f1f5f9}
+
+:root{--tww:clamp(150px,19vw,270px)}
+#tower{position:fixed;left:0;top:0;bottom:0;width:var(--tww);display:flex;align-items:flex-end;justify-content:center;pointer-events:none}
+#tower .tm{position:relative;height:min(100vh,calc(var(--tww)*3.012));aspect-ratio:340/1024}
+#tower img{position:absolute;inset:0;width:100%;height:100%;opacity:.4}
+#fl{position:absolute;inset:0}
+.fb{position:absolute;left:68%;transform:translateY(-50%);display:flex;gap:5px;align-items:center;pointer-events:auto;padding:1px 8px 1px 6px;border:1px solid #cdd5dc;border-radius:10px;font-size:11px;line-height:16px;white-space:nowrap;background:#f8fafbe0;cursor:pointer}
+.fb i{width:8px;height:8px;border-radius:50%;background:var(--c,#aab3bc)}.fb.has{--c:#1f8a5b}.fb.on{border-color:#2f62c9;box-shadow:0 0 0 2px #2f62c9;font-weight:700}
+#rp{margin-left:var(--tww);min-width:0}
+@media(max-width:860px){#tower{display:none}#rp{margin-left:0}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head><body>
 <div id="login"><div><b>租戶 POS 資料維護</b><input id="pw" type="password" placeholder="共用密碼"><button class="p" id="lb">登入</button><span id="err" class="bad"></span></div></div>
+<div id="app"><aside id="tower"><div class="tm"><img src="tower.png" alt="" aria-hidden="true"><div id="fl"></div></div></aside>
+<div id="rp">
 <header><h1>租戶 POS 資料維護</h1>
 <nav><button data-v="tenants" class="on">專櫃</button><button data-v="search">查詢</button><button data-v="import">匯入</button></nav>
-<span class="sp"></span>操作人 <select id="op"></select><button class="s" id="addop">＋</button><span id="msg"></span></header>
+<span class="sp"></span>操作人 <select id="op"></select><button class="s" id="addop">＋</button><span id="msg"></span><button class="s" id="out">登出</button></header>
 <main>
 <section id="v-tenants"><div class="bar"><input id="q" placeholder="櫃號／櫃名／分機"><select id="fl"></select>
 <select id="st"><option value="">全部狀態</option><option>營業中</option><option>籌備中（新開幕）</option><option>已撤櫃</option><option>虛擬</option></select>
 <select id="cf"><option value="">全部合約</option><option>已到期</option><option>90日內</option><option>有效</option><option>無資料</option></select>
-<button class="p" id="nt">＋新增專櫃</button><b id="cnt"></b></div>
+<button class="p" id="nt">＋新增專櫃</button><b id="cnt"></b><button class="s" id="cfg" hidden></button></div>
 <div id="tw"><table id="tt"><colgroup id="cg"></colgroup><thead><tr id="hr"></tr></thead><tbody id="tb"></tbody></table></div></section>
 <section id="v-search" hidden><div class="bar"><input id="gq" size="40" placeholder="輸入機號、IP、TID、櫃號、櫃名或分機（至少 2 字）" autofocus></div><div id="sr"></div></section>
 <section id="v-import" hidden><p>選擇 <b>tenant-pos-seed.json</b>。相同 ID 會被覆蓋（可重複匯入）；資料原樣寫入，含重複與過期合約，疑義以標記顯示。</p>
 <div class="bar"><input type="file" id="fi" accept=".json"><button class="p" id="go" disabled>開始匯入</button></div><pre id="log">尚未選擇檔案</pre><hr><p>已匯入的資料：依機號重新計算「樓層」與「位置號碼」並寫入資料庫（只更新有變動的資料）。</p><button class="p" id="rc">依機號重算樓層與位置</button><hr><p>機器歸屬調整：選擇 <b>mpos-assign-patch.json</b>，把指定機器改掛到對應專櫃，並刪除異常機號。</p><div class="bar"><input type="file" id="pf" accept=".json"><button class="p" id="pg" disabled>套用歸屬調整</button></div></section>
 </main>
+</div></div>
 <div id="mod"><div id="md"></div></div>
 <div id="am"><div id="ad"></div></div>
 <script>
@@ -72,7 +85,8 @@ function fillOps(){const v=localStorage.op||"";$("#op").innerHTML=opts([""].conc
 $("#op").onchange=e=>localStorage.op=e.target.value;
 $("#addop").onclick=async()=>{const n=prompt("新增操作人姓名"),nm=(n||"").trim();if(!nm||OPS.includes(nm))return;try{await db.collection(C.meta).doc("operators").set({list:[...OPS,nm]});OPS.push(nm);localStorage.op=nm;fillOps()}catch(e){alert("新增失敗："+e.message)}};
 function fillFl(){const s=new Set(Object.values(D.tenants).map(t=>t.floor).filter(Boolean));$("#fl").innerHTML='<option value="">全部樓層</option>'+opts([...s].sort((a,b)=>fo(a)-fo(b)||a.localeCompare(b)))}
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));["tenants","search","import"].forEach(v=>$("#v-"+v).hidden=v!==b.dataset.v)});
+function showTab(v){document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));["tenants","search","import"].forEach(x=>$("#v-"+x).hidden=x!==v)}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>showTab(b.dataset.v));
 const cs=t=>{if(!t.contractEnd)return["無資料",""];const d=(new Date(t.contractEnd)-new Date())/864e5;return d<0?["已到期","bad"]:d<=90?["90日內","warn"]:["有效",""]};
 const regsOf=id=>Object.values(D.registers).filter(r=>r.tenantId===id),edcOf=id=>Object.values(D.edc).filter(e=>e.tenantId===id),notesOf=(c,id)=>Object.values(D.notes).filter(n=>n.scope===c&&n.targetId===id);
 function posInfo(no){no=String(no||"").trim().toUpperCase();let m;
@@ -97,7 +111,7 @@ try{for(let i=0;i<ups.length;i+=400){const b=db.batch();ups.slice(i,i+400).forEa
 await db.collection(C.log).add({at:ts(),by,col:"batch",id:"recalc",act:"recalc",before:null,after:{count:ups.length,sample:ups.slice(0,30).map(([c,id,d])=>({c,id,...d}))}});
 ups.forEach(([c,id,d])=>D[c][id]={...D[c][id],...d});fillFl();render();lg(`完成：更新 ${ups.length} 筆`)}catch(e){lg("失敗："+e.message)}};
 const CK=["no","name","regs","cat","floor","loc","phone","contract","status","pos","edc","note"],CN={no:"櫃號",name:"櫃名",regs:"POS機號",cat:"類型",floor:"樓層",loc:"位置",phone:"分機",contract:"合約到期",status:"狀態",pos:"POS",edc:"EDC",note:"備註"};
-const CW0=[80,220,90,70,100,180,80,150,110,60,60,320];
+const CW0=[80,200,90,70,100,90,80,140,100,60,60,280];
 let ORD=(()=>{try{const a=JSON.parse(localStorage.tp_colo);if(Array.isArray(a)){if(a.length===CK.length-1&&!a.includes("regs"))a.splice(a.indexOf("name")+1,0,"regs");if(a.length===CK.length&&CK.every(k=>a.includes(k)))return a}}catch(e){}return CK.slice()})();
 function cwGet(){try{const a=JSON.parse(localStorage.tp_colw);if(Array.isArray(a)){if(a.length===CW0.length-2)a.push(CW0[CW0.length-1]);if(a.length===CW0.length-1)a.splice(2,0,CW0[2]);if(a.length===CW0.length)return a}}catch(e){}return CW0.slice()}
 function cwApply(a){$("#cg").innerHTML=ORD.map(k=>`<col style="width:${a[CK.indexOf(k)]}px">`).join("");$("#tt").style.width=a.reduce((x,y)=>x+y,0)+"px"}
@@ -111,6 +125,14 @@ th.ondragstart=e=>{e.dataTransfer.setData("text/plain",k);e.dataTransfer.effectA
 th.ondragover=e=>{e.preventDefault();th.classList.add("ov")};th.ondragleave=()=>th.classList.remove("ov");
 th.ondrop=e=>{e.preventDefault();const from=e.dataTransfer.getData("text/plain");if(!from||from===k)return;const fi=ORD.indexOf(from),ti=ORD.indexOf(k);ORD.splice(fi,1);ORD.splice(ti,0,from);localStorage.tp_colo=JSON.stringify(ORD);headInit();render()}})}
 headInit();
+const FL=[["89","89F",20.5],["88","88F",23.5],["86","86F",26.5],["85","85F",29.5],["35","35F",63],["LOW","B1–5F",89]];
+const fgroup=f=>{const c=String(f||"").toUpperCase().replace(/[\s樓F]/g,"");if(["89","88","86","85","35"].includes(c))return c;return/^(B[1-9]|[1-5])$/.test(c)?"LOW":null};
+let FG=null;
+function renderTower(){const n={};Object.values(D.tenants).forEach(t=>{const g=fgroup(t.floor);if(g)n[g]=(n[g]||0)+1});
+$("#fl").innerHTML=FL.map(([k,l,y])=>`<button class="fb ${n[k]?"has":""} ${FG===k?"on":""}" style="top:${y}%" data-k="${k}" title="${n[k]||0} 個專櫃"><i></i>${l}${n[k]?` <b>${n[k]}</b>`:""}</button>`).join("")}
+$("#fl").onclick=e=>{const b=e.target.closest(".fb");if(!b)return;FG=FG===b.dataset.k?null:b.dataset.k;showTab("tenants");render()};
+$("#cfg").onclick=()=>{FG=null;render()};
+$("#out").onclick=()=>auth.signOut();
 function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={},nm={},etid={},pn={},pm={},rl={};
 Object.values(D.registers).forEach(r=>{rc[r.tenantId]=(rc[r.tenantId]||0)+1;(rl[r.tenantId]=rl[r.tenantId]||[]).push(r.registerNo);if(r.model==='虛擬'||r.status==='虛擬（系統）')return;const l=posLoc(r.registerNo);if(l)(lc[r.tenantId]=lc[r.tenantId]||[]).push(l);const i=posInfo(r.registerNo);if(i&&i.floor===(D.tenants[r.tenantId]||{}).floor){const o=r.model==='mPOS'?pm:pn,k=i.temp?9998:i.pos;o[r.tenantId]=Math.min(o[r.tenantId]??99999,k)}});Object.values(D.edc).forEach(e=>{if(e.status!=="停用")ec[e.tenantId]=(ec[e.tenantId]||0)+1});
 Object.values(D.edc).forEach(e=>etid[e.tid]=e);
@@ -118,12 +140,12 @@ const addn=(t,x)=>{if(t)(nm[t]=nm[t]||[]).push(x)};
 Object.values(D.notes).forEach(n=>{let t=null,p="";if(n.scope==="tenant")t=n.targetId;else if(n.scope==="register"){const r=D.registers[n.targetId];t=r&&r.tenantId;p=n.targetId+"："}else if(n.scope==="edc"){const e=etid[n.targetId];t=e&&e.tenantId;p="TID "+n.targetId+"："}
 addn(t,`<div>• <span class="t">${esc(n.category)}</span> ${esc(p+n.content)}</div>`)});
 Object.values(D.registers).forEach(r=>r.note&&addn(r.tenantId,`<div>• ${esc(r.registerNo)}：${esc(r.note)}</div>`));
-const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone} ${(rl[t.id]||[]).join(' ')}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf))
+const rows=Object.values(D.tenants).filter(t=>(!q||`${t.tenantNo} ${t.name} ${t.phone} ${(rl[t.id]||[]).join(' ')}`.toLowerCase().includes(q))&&(!fl||t.floor===fl)&&(!st||t.status===st)&&(!cf||cs(t)[0]===cf)&&(!FG||fgroup(t.floor)===FG))
 .sort((a,b)=>{const pk=t=>pn[t.id]??pm[t.id]??99999;return fo(a.floor)-fo(b.floor)||pk(a)-pk(b)||String(a.tenantNo||a.id).localeCompare(String(b.tenantNo||b.id))});
 $("#tb").innerHTML=rows.map(t=>{const[c,k]=cs(t),L=[...new Set(lc[t.id]||[])].join('、'),NH=(nm[t.id]||[]).join(''),RG=(rl[t.id]||[]).sort().map(x=>`<div>${esc(x)}</div>`).join('');
 const X={no:`<td>${esc(t.tenantNo)}</td>`,name:`<td title="${esc(t.name)}">${esc(t.name)}</td>`,regs:`<td class="nt">${RG}</td>`,cat:`<td>${esc(t.category)}</td>`,floor:`<td>${esc(t.floor)}${t.floorLocked?" 🔒":""}</td>`,loc:`<td title="${esc(L)}">${esc(L)}</td>`,phone:`<td>${esc(t.phone)}</td>`,contract:`<td class="${k}">${esc(t.contractEnd||"")}${k?" ("+c+")":""}</td>`,status:`<td${t.status==="籌備中（新開幕）"?' class="new"':""}>${esc(t.status)}</td>`,pos:`<td>${rc[t.id]||0}</td>`,edc:`<td>${ec[t.id]||0}</td>`,note:`<td class="nt">${NH}</td>`};
 return`<tr data-id="${esc(t.id)}">${ORD.map(x=>X[x]).join("")}</tr>`}).join("");
-$("#cnt").textContent=rows.length+" 筆"}
+$("#cnt").textContent=rows.length+" 筆";$("#cfg").hidden=!FG;if(FG)$("#cfg").textContent="清除樓層篩選（"+FL.find(x=>x[0]===FG)[1]+"）";renderTower()}
 ["q","fl","st","cf"].forEach(i=>$("#"+i).oninput=render);
 $("#tb").onclick=e=>{const tr=e.target.closest("tr");if(tr)openT(tr.dataset.id)};
 $("#gq").oninput=()=>{const q=$("#gq").value.trim().toLowerCase();if(q.length<2){$("#sr").innerHTML="";return}const o=[];

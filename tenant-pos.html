@@ -34,7 +34,7 @@ tr.off td{background:#f1f5f9}tr.off input,tr.off select{color:#94a3b8;background
 #tower{position:fixed;left:0;top:0;bottom:0;width:var(--tww);display:flex;align-items:flex-end;justify-content:center;pointer-events:none}
 #tower .tm{position:relative;height:min(100vh,calc(var(--tww)*3.012));aspect-ratio:340/1024}
 #tower img{position:absolute;inset:0;width:100%;height:100%;opacity:.4}
-#fl{position:absolute;inset:0}
+#tfl{position:absolute;inset:0}
 .fb{position:absolute;left:68%;transform:translateY(-50%);display:flex;gap:5px;align-items:center;pointer-events:auto;padding:1px 8px 1px 6px;border:1px solid #cdd5dc;border-radius:10px;font-size:11px;line-height:16px;white-space:nowrap;background:#f8fafbe0;cursor:pointer}
 .fb i{width:8px;height:8px;border-radius:50%;background:var(--c,#aab3bc)}.fb.has{--c:#1f8a5b}.fb.on{border-color:#2f62c9;box-shadow:0 0 0 2px #2f62c9;font-weight:700}
 #rp{margin-left:var(--tww);min-width:0}
@@ -45,7 +45,7 @@ tr.off td{background:#f1f5f9}tr.off input,tr.off select{color:#94a3b8;background
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head><body>
 <div id="login"><div><b>租戶 POS 資料維護</b><input id="pw" type="password" placeholder="共用密碼"><button class="p" id="lb">登入</button><span id="err" class="bad"></span></div></div>
-<div id="app"><aside id="tower"><div class="tm"><img src="tower.png" alt="" aria-hidden="true"><div id="fl"></div></div></aside>
+<div id="app"><aside id="tower"><div class="tm"><img src="tower.png" alt="" aria-hidden="true"><div id="tfl"></div></div></aside>
 <div id="rp">
 <header><h1>租戶 POS 資料維護</h1>
 <nav><button data-v="tenants" class="on">專櫃</button><button data-v="search">查詢</button><button data-v="import">匯入</button></nav>
@@ -129,8 +129,8 @@ const FL=[["89","89F",20.5],["88","88F",23.5],["86","86F",26.5],["85","85F",29.5
 const fgroup=f=>{const c=String(f||"").toUpperCase().replace(/[\s樓F]/g,"");if(["89","88","86","85","35"].includes(c))return c;return/^(B[1-9]|[1-5])$/.test(c)?"LOW":null};
 let FG=null;
 function renderTower(){const n={};Object.values(D.tenants).forEach(t=>{const g=fgroup(t.floor);if(g)n[g]=(n[g]||0)+1});
-$("#fl").innerHTML=FL.map(([k,l,y])=>`<button class="fb ${n[k]?"has":""} ${FG===k?"on":""}" style="top:${y}%" data-k="${k}" title="${n[k]||0} 個專櫃"><i></i>${l}${n[k]?` <b>${n[k]}</b>`:""}</button>`).join("")}
-$("#fl").onclick=e=>{const b=e.target.closest(".fb");if(!b)return;FG=FG===b.dataset.k?null:b.dataset.k;showTab("tenants");render()};
+$("#tfl").innerHTML=FL.map(([k,l,y])=>`<button class="fb ${n[k]?"has":""} ${FG===k?"on":""}" style="top:${y}%" data-k="${k}" title="${n[k]||0} 個專櫃"><i></i>${l}${n[k]?` <b>${n[k]}</b>`:""}</button>`).join("")}
+$("#tfl").onclick=e=>{const b=e.target.closest(".fb");if(!b)return;FG=FG===b.dataset.k?null:b.dataset.k;showTab("tenants");render()};
 $("#cfg").onclick=()=>{FG=null;render()};
 $("#out").onclick=()=>auth.signOut();
 function render(){const q=$("#q").value.trim().toLowerCase(),fl=$("#fl").value,st=$("#st").value,cf=$("#cf").value,rc={},ec={},lc={},nm={},etid={},pn={},pm={},rl={};

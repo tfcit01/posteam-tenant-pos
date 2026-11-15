@@ -25,7 +25,7 @@ h3{margin:16px 0 6px;font-size:15px}td input,td select{width:100%}.res{backgroun
 #tf{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:10px}
 #tf label,#af label{display:grid;grid-template-columns:82px 1fr;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;color:#334155}
 #tf input,#tf select,#af input,#af select{min-width:0}#tf input[type=checkbox]{width:auto}
-#dpos table,#dedc table{table-layout:fixed}
+#dpos table,#dedc table{table-layout:fixed}#dpos th,#dedc th,#dpos td:last-child,#dedc td:last-child{white-space:nowrap}
 #am{position:fixed;inset:0;background:#0007;display:none;z-index:7;overflow:auto}#ad{background:#fff;max-width:480px;margin:8vh auto;padding:16px;border-radius:8px}
 .pv{color:#475569;font-size:12px;margin:4px 0}
 </style>
@@ -169,8 +169,8 @@ $("#md").innerHTML=`<div class="bar"><b style="font-size:16px">${esc(t.tenantNo|
 <label>類型<select data-k="category">${opts(CAT,t.category||"")}</select></label><label>狀態<select data-k="status">${opts(TST,t.status||"營業中")}</select></label>
 ${f("openedAt","開幕日","date")}${f("contractEnd","合約到期日","date")}${f("phone","分機／電話")}
 <p><button class="p sv">儲存專櫃資料</button> ${t.tenantNo?"":'<button class="s" id="mg">併入專櫃</button>'}</p></div></div>
-<div id="dpos"><h3>POS（${rs.length}）</h3><table style="width:676px">${cg([85,50,105,80,100,190,66])}<thead><tr><th>機號</th><th>位置</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody>${rs.map(regRow).join("")}</tbody></table></div>
-<div id="dedc"><h3>EDC（${es.length}）</h3><table style="width:596px">${cg([95,70,75,90,125,75,66])}<thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody>${es.map(edcRow).join("")}</tbody></table></div></div>
+<div id="dpos"><h3>POS（${rs.length}）</h3><table style="width:700px">${cg([85,50,105,80,100,190,90])}<thead><tr><th>機號</th><th>位置</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody>${rs.map(regRow).join("")}</tbody></table></div>
+<div id="dedc"><h3>EDC（${es.length}）</h3><table style="width:685px">${cg([95,75,95,110,125,95,90])}<thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody>${es.map(edcRow).join("")}</tbody></table></div></div>
 <h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <button class="s d dn">刪</button></p>`).join("")}</div>
 <div class="bar" id="nf"><select data-k="category">${opts(NC,"")}</select><input data-k="content" size="60" placeholder="新增備註內容"><button class="s" id="an">新增備註</button></div>`;
 $("#mod").style.display="block";$("#md").dataset.t=id;

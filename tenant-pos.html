@@ -47,6 +47,7 @@ main{flex:1;min-height:0;overflow:auto;padding:12px 16px 0 0}
 #v-tenants{height:100%;display:flex;flex-direction:column}
 #v-tenants .bar{flex:none;padding-left:10px}
 #tw{flex:1;min-height:0;overflow:auto}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#166534;color:#fff;padding:10px 22px;border-radius:8px;font-size:15px;box-shadow:0 4px 14px #0005;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}#toast.on{opacity:1}.mt{color:#64748b;font-size:12px;margin:0 8px}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -71,6 +72,7 @@ main{flex:1;min-height:0;overflow:auto;padding:12px 16px 0 0}
 </div></div>
 <div id="mod"><div id="md"></div></div>
 <div id="am"><div id="ad"></div></div>
+<div id="toast"></div>
 <script>
 const FB={apiKey:"AIzaSyApAO5NwuoXSJtO3y53taHLPgDxYk32v8E",authDomain:"posteam-tenant.firebaseapp.com",projectId:"posteam-tenant"}; // ← 填入 Firebase 設定
 const SHARED_EMAIL="jiajie.lin@tfc101.com.tw"; // ← 共用帳號（Firebase Auth 的 Email/Password 使用者）
@@ -167,7 +169,7 @@ const ts=()=>firebase.firestore.FieldValue.serverTimestamp(),clean=o=>JSON.parse
 async function put(col,id,data){const by=$("#op").value;if(!by){alert("請先在右上角選擇操作人");return false}
 const before=D[col][id]?clean(D[col][id]):null,doc={...data,updatedAt:ts(),updatedBy:by};if(!before)doc.createdAt=ts();
 try{await db.collection(C[col]).doc(id).set(doc,{merge:true});await db.collection(C.log).add({at:ts(),by,col,id,act:before?"update":"create",before,after:data})}catch(e){alert("儲存失敗："+e.message);return false}
-D[col][id]={...(D[col][id]||{}),...data,id};return true}
+const now=new Date();D[col][id]={...(D[col][id]||{}),...data,id,updatedAt:now,updatedBy:by,...(before?{}:{createdAt:now})};return true}
 async function del(col,id){const by=$("#op").value;if(!by){alert("請先選擇操作人");return false}if(!confirm("確定刪除？"))return false;
 try{await db.collection(C[col]).doc(id).delete();await db.collection(C.log).add({at:ts(),by,col,id,act:"delete",before:clean(D[col][id]),after:null})}catch(e){alert("刪除失敗："+e.message);return false}
 delete D[col][id];return true}
@@ -180,6 +182,9 @@ if(col==="tenants"){if(d.tenantNo&&!/^[A-Z]\d{4}$/.test(d.tenantNo))w.push("櫃�
 return w}
 const val=tr=>{const o={};tr.querySelectorAll("[data-k]").forEach(i=>o[i.dataset.k]=i.type==="checkbox"?i.checked:(i.value.trim()||null));return o};
 // ---------- tenant detail
+let _tt;function toast(m){const e=$("#toast");e.textContent="✓ "+m;e.classList.add("on");clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove("on"),2600)}
+async function busy(b,fn){const t=b.textContent;b.disabled=true;b.textContent="…";try{return await fn()}finally{if(b.isConnected){b.disabled=false;b.textContent=t}}}
+const tm=x=>{const d=x&&x.toDate?x.toDate():(x instanceof Date?x:(x&&x.seconds?new Date(x.seconds*1000):null));if(!d||isNaN(d))return"";const z=n=>String(n).padStart(2,"0");return`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`};
 async function saveRow(c,id,d,T){
 if(c==="registers"){if(!d.registerNo){alert("請輸入機號");return false}if(!id){id=d.registerNo;if(D.registers[id]){alert("機號已存在");return false}}d.tenantId=T;Object.assign(d,locFields(d))}
 if(c==="edc"){if(!d.tid){alert("請輸入 TID");return false}if(!id){id=d.acquirer+"-"+d.tid;if(D.edc[id])id+="#"+(Date.now()%1000)}d.tenantId=T}
@@ -202,7 +207,7 @@ ${f("openedAt","開幕日","date")}${f("contractEnd","合約到期日","date")}$
 <p><button class="p sv">儲存專櫃資料</button> ${t.tenantNo?"":'<button class="s" id="mg">併入專櫃</button>'}</p></div></div>
 <div id="dpos"><h3>POS（${rs.length}）</h3><table style="width:100%;min-width:560px">${cg([85,105,80,100,0,90])}<thead><tr><th>機號</th><th>機型</th><th>IP</th><th>狀態</th><th>備註</th><th></th></tr></thead><tbody>${rs.map(regRow).join("")}</tbody></table></div>
 <div id="dedc"><h3>EDC（${es.filter(x=>x.status!=="停用").length}）${es.some(x=>x.status==="停用")?`　<span style="font-size:12px;color:#64748b">另有 ${es.filter(x=>x.status==="停用").length} 台停用</span>`:""}</h3><table style="width:100%;min-width:645px">${cg([95,75,90,105,0,90,90])}<thead><tr><th>TID</th><th>收單行</th><th>有線/無線</th><th>綁定機號</th><th>用途</th><th>狀態</th><th></th></tr></thead><tbody>${es.map(edcRow).join("")}</tbody></table></div></div>
-<h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <button class="s d dn">刪</button></p>`).join("")}</div>
+<h3>備註（${ns.length}）</h3><div id="nl">${ns.map(n=>`<p data-id="${esc(n.id)}"><span class="t">${esc(n.category)}</span> ${esc(n.content)} <span class="mt">${esc([n.createdBy||n.updatedBy||"",tm(n.createdAt)].filter(Boolean).join("　"))}</span><button class="s d dn">刪</button></p>`).join("")}</div>
 <div class="bar" id="nf"><select data-k="category">${opts(NC,"")}</select><input data-k="content" size="60" placeholder="新增備註內容"><button class="s" id="an">新增備註</button></div>`;
 $("#mod").style.display="block";$("#md").dataset.t=id;
 $("#md").onchange=e=>{if(e.target.dataset.k==="status"){const tr=e.target.closest('tr[data-c="edc"]');if(tr)tr.classList.toggle("off",e.target.value==="停用")}};
@@ -210,10 +215,10 @@ $("#md").onclick=async e=>{const b=e.target,tr=b.closest("[data-c]"),T=$("#md").
 if(b.id==="cl"){$("#mod").style.display="none";render();fillFl();return}
 if(b.id==="addb"){openAdd(T);return}
 if(b.id==="mg"){openMerge(T);return}
-if(b.id==="an"){const o=val($("#nf"));if(!o.content)return;const nid="n"+Date.now();if(await put("notes",nid,{scope:"tenant",targetId:T,category:o.category,content:o.content,source:"手動"}))openT(T);return}
-if(b.classList.contains("dn")){if(await del("notes",b.closest("p").dataset.id))openT(T);return}
-if(b.classList.contains("dl")){if(await del(tr.dataset.c,tr.dataset.id)){if(tr.dataset.c==="registers")await syncFloor(T);openT(T)}return}
-if(b.classList.contains("sv")){if(await saveRow(tr.dataset.c,tr.dataset.id,val(tr),T)){msg("已儲存");openT(T)}}}}
+if(b.id==="an"){const o=val($("#nf"));if(!o.content)return;const nid="n"+Date.now();if(await busy(b,()=>put("notes",nid,{scope:"tenant",targetId:T,category:o.category,content:o.content,source:"手動",createdBy:$("#op").value}))){toast("已新增備註");openT(T)}return}
+if(b.classList.contains("dn")){if(await busy(b,()=>del("notes",b.closest("p").dataset.id))){toast("已刪除備註");openT(T)}return}
+if(b.classList.contains("dl")){if(await busy(b,async()=>{const ok=await del(tr.dataset.c,tr.dataset.id);if(ok&&tr.dataset.c==="registers")await syncFloor(T);return ok})){toast("已刪除");openT(T)}return}
+if(b.classList.contains("sv")){const c=tr.dataset.c;if(await busy(b,()=>saveRow(c,tr.dataset.id,val(tr),T))){toast(c==="tenants"?"專櫃資料已儲存":"已儲存");openT(T)}}}}
 // ---------- add dialog (POS / EDC)
 function openAdd(T,kind){kind=kind||"registers";const rs=regsOf(T),row=(l,h)=>`<label>${l}${h}</label>`;
 const body=kind==="registers"
@@ -234,7 +239,7 @@ $("#mt").selectedIndex=0;$("#am").style.display="block"}
 $("#am").onclick=async e=>{const b=e.target,T=$("#ad").dataset.t;
 if(b.name==="ak"){openAdd(T,b.value);return}
 if(b.id==="ax"||b===$("#am")){$("#am").style.display="none";return}
-if(b.id==="as"||b.id==="ac"){const c=$("#ad").dataset.k;if(await saveRow(c,"",val($("#af")),T)){msg("已儲存");if(b.id==="as"){$("#am").style.display="none";openT(T)}else{openT(T);openAdd(T,c)}}return}
+if(b.id==="as"||b.id==="ac"){const c=$("#ad").dataset.k;if(await busy(b,()=>saveRow(c,"",val($("#af")),T))){toast(c==="registers"?"已新增 POS":"已新增 EDC");if(b.id==="as"){$("#am").style.display="none";openT(T)}else{openT(T);openAdd(T,c)}}return}
 if(b.id==="mgo"){const tg=$("#mt").value,s=D.tenants[T],g=D.tenants[tg],by=$("#op").value;if(!g){alert("請選擇要併入的專櫃");return}if(!by){alert("請先在右上角選擇操作人");return}
 if(!confirm(`確定將「${s.name}」併入 ${g.tenantNo} ${g.name}？\n原專櫃「${s.name}」會被刪除。`))return;
 const rs=regsOf(T),es=edcOf(T),ns=notesOf("tenant",T),u=()=>({updatedAt:ts(),updatedBy:"併入專櫃："+by}),nn=r=>[r.note,"原專櫃名稱："+s.name].filter(Boolean).join("；");
@@ -243,7 +248,7 @@ const fill={};["phone","contractEnd","openedAt"].forEach(k=>{if(!g[k]&&s[k])fill
 bt.delete(db.collection(C.tenants).doc(T));await bt.commit();
 await db.collection(C.log).add({at:ts(),by,col:"tenants",id:T,act:"merge",before:clean(s),after:{mergedInto:tg,pos:rs.map(r=>r.id),edc:es.map(x=>x.id),notes:ns.length}});
 rs.forEach(r=>D.registers[r.id]={...r,tenantId:tg,note:nn(r)});es.forEach(x=>D.edc[x.id]={...x,tenantId:tg});ns.forEach(x=>D.notes[x.id]={...x,targetId:tg});Object.assign(g,fill);delete D.tenants[T];
-await syncFloor(tg);$("#am").style.display="none";fillFl();render();openT(tg);msg("已併入")}catch(x){alert("併入失敗："+x.message)}}};
+await syncFloor(tg);$("#am").style.display="none";fillFl();render();openT(tg);toast("已併入")}catch(x){alert("併入失敗："+x.message)}}};
 $("#am").oninput=e=>{if(e.target.id==="ano"){const i=posInfo(e.target.value);$("#pv").textContent=i?(i.temp?`樓層 ${i.floor}・臨時櫃`:`樓層 ${i.floor}・位置 ${i.pos}`):(e.target.value?"機號無法判讀樓層／位置":"")}
 if(e.target.id==="mq"){$("#mt").innerHTML=mOpts(e.target.value.trim().toLowerCase());$("#mt").selectedIndex=0}};
 $("#nt").onclick=async()=>{const n=prompt("新專櫃的櫃名");if(!n)return;const no=(prompt("櫃號（虛擬專櫃可留空）")||"").trim(),id=no||"VIRT-"+Date.now();
